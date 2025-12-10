@@ -68,11 +68,7 @@ class TenantResponse(TenantBase):
 class TenantWithSubscription(TenantResponse):
     """Tenant response with subscription details"""
 
-    from app.schemas.subscription import SubscriptionResponse
-
-    subscription: Optional["SubscriptionResponse"] = Field(
-        None, description="Current subscription"
-    )
+    subscription: Optional[dict] = Field(None, description="Current subscription")
 
 
 class TenantUserResponse(BaseSchema):
