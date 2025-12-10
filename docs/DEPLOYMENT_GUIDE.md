@@ -336,22 +336,3 @@ jobs:
       - name: Deploy app
         run: docker compose -f docker-compose.prod.yml up -d app worker
 ```
-
----
-
-## Висновок
-
-**Migration service** забезпечує:
-
-- Безпечне застосування міграцій
-- Правильний порядок запуску сервісів
-- Можливість rollback
-- Ізоляцію міграцій від основного додатку
-
-**Production-ready** конфігурація включає:
-
-- Health checks
-- Restart policies
-- Secrets через environment variables
-- Network isolation
-- Proper dependencies

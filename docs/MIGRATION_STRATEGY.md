@@ -336,16 +336,4 @@ docker compose -f docker-compose.prod.yml stop migration
 
 ---
 
-## Висновок
-
-**Migration service** забезпечує:
-
-- Безпечне застосування міграцій
-- Правильний порядок запуску
-- Можливість rollback
-- Ізоляцію від основного додатку
-- Production-ready deployment
-
-**Готово до використання!**
-
 Детальніше: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
