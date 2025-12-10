@@ -325,15 +325,4 @@ docker compose -f docker-compose.prod.yml stop migration
 
 ---
 
-## Порівняння підходів
-
-| Підхід | Переваги | Недоліки |
-|--------|----------|----------|
-| **Manual migrations** | Простота | Race conditions, downtime |
-| **Init container** | Один запуск | Складніша конфігурація |
-| **Entrypoint script** | Гнучкість | Може запуститись кілька разів |
-| **Migration service** ✅ | Безпека, ізоляція | Потребує Docker Compose |
-
----
-
 Детальніше: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
