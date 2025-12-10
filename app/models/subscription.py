@@ -1,18 +1,11 @@
 from datetime import datetime
 from uuid import UUID, uuid4
-import enum
 
-from sqlalchemy import String, DateTime, Enum, ForeignKey
+from sqlalchemy import String, DateTime, Enum, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-
-
-class SubscriptionStatus(str, enum.Enum):
-    TRIAL = "trial"
-    ACTIVE = "active"
-    PAST_DUE = "past_due"
-    CANCELLED = "cancelled"
+from app.models.enums import SubscriptionStatus, BillingPeriod
 
 
 class Subscription(Base):
@@ -26,19 +19,35 @@ class Subscription(Base):
     status: Mapped[SubscriptionStatus] = mapped_column(
         Enum(SubscriptionStatus), default=SubscriptionStatus.TRIAL, nullable=False
     )
-    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    current_period_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    current_period_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    payment_provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    billing_period: Mapped[BillingPeriod] = mapped_column(
+        Enum(BillingPeriod), default=BillingPeriod.MONTHLY, nullable=False
+    )
+    trial_ends_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    current_period_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    current_period_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancel_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    payment_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
     external_subscription_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
+    external_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     # Relationships

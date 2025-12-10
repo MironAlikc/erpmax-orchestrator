@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: erpmax_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-erpmax}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-erpmax_orchestrator}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erpmax}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erpmax_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: erpmax_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erpmax_network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: erpmax_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-erpmax}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erpmax_network
+
+  # Migration service - runs once and exits
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: erpmax_migration
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-erpmax}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erpmax_orchestrator}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: alembic upgrade head
+    networks:
+      - erpmax_network
+    restart: "no"
+
+  # Main application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: erpmax_orchestrator
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-erpmax}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erpmax_orchestrator}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # RabbitMQ
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-erpmax}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-erpmax}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+
+      # Application
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+
+      # Do not run migrations in app container
+      RUN_MIGRATIONS: "false"
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    networks:
+      - erpmax_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+  # Worker for background tasks
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: erpmax_worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-erpmax}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erpmax_orchestrator}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-erpmax}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    networks:
+      - erpmax_network
+    command: python -m app.workers.provisioning
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  erpmax_network:
+    driver: bridge

@@ -144,17 +144,37 @@ pytest tests/test_auth.py -v
 
 ## Розгортання на продакшн
 
-1. Встановити production змінні в `.env`
-2. Змінити `DEBUG=false`
-3. Встановити сильний `SECRET_KEY`
-4. Налаштувати CORS (`ALLOWED_ORIGINS`)
-5. Використати production БД
-6. Налаштувати HTTPS
-7. Запустити через Gunicorn + Uvicorn workers:
+### Швидкий старт
 
 ```bash
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+# 1. Створити production env файл
+cp .env.production.example .env.production
+# Відредагувати та встановити всі паролі
+
+# 2. Запустити з автоматичними міграціями
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+
+# 3. Перевірити статус
+docker compose -f docker-compose.prod.yml ps
+curl http://localhost:8000/health
 ```
+
+### Тестування міграцій перед deployment
+
+```bash
+# Запустити тести міграцій
+./scripts/test-migrations.sh
+```
+
+### Детальна інструкція
+
+Дивіться [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) для:
+
+- Стратегії міграцій
+- Zero-downtime deployment
+- Rollback процедури
+- Troubleshooting
+- CI/CD integration
 
 ## Ліцензія
 

@@ -1,19 +1,11 @@
 from datetime import datetime
 from uuid import UUID, uuid4
-import enum
 
-from sqlalchemy import String, DateTime, Enum, JSON
+from sqlalchemy import String, DateTime, Enum, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-
-
-class TenantStatus(str, enum.Enum):
-    PENDING = "pending"
-    PROVISIONING = "provisioning"
-    ACTIVE = "active"
-    SUSPENDED = "suspended"
-    CANCELLED = "cancelled"
+from app.models.enums import TenantStatus
 
 
 class Tenant(Base):
@@ -22,7 +14,7 @@ class Tenant(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(
-        String(255), unique=True, index=True, nullable=False
+        String(100), unique=True, index=True, nullable=False
     )
     status: Mapped[TenantStatus] = mapped_column(
         Enum(TenantStatus), default=TenantStatus.PENDING, nullable=False
@@ -32,10 +24,13 @@ class Tenant(Base):
     erpnext_api_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
     settings: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     # Relationships
@@ -47,6 +42,9 @@ class Tenant(Base):
         back_populates="tenant",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+    provisioning_jobs: Mapped[list["ProvisioningJob"]] = relationship(
+        "ProvisioningJob", back_populates="tenant", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
