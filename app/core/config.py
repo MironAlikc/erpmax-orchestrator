@@ -1,4 +1,6 @@
-from pydantic_settings import BaseSettings
+from typing import Union
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from functools import lru_cache
 
 
@@ -29,10 +31,26 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
+    password_reset_token_expire_hours: int = 24
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    # CORS
+    allowed_origins: Union[str, list[str]] = (
+        "http://localhost:3000,http://localhost:8000"
+    )
+
+    @field_validator("allowed_origins", mode="after")
+    @classmethod
+    def parse_cors(cls, v):
+        """Parse CORS origins from comma-separated string"""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        json_schema_extra={"env_prefix": ""},
+    )
 
 
 @lru_cache
