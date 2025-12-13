@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     rabbitmq_port: int = 5672
     rabbitmq_user: str = "erpmax"
     rabbitmq_password: str = "RabbitErpMax2025!"
+    rabbitmq_url: str | None = None
+    provisioning_queue_name: str = "erpmax.provisioning"
 
     # JWT
     jwt_algorithm: str = "HS256"
