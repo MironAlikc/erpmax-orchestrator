@@ -327,3 +327,4 @@ docker compose -f docker-compose.prod.yml stop migration
 
 Детальніше: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
 Billing service implementation details: [BILLING.md](BILLING.md)
+Provisioning Service & API: [PROVISIONING.md](PROVISIONING.md)
