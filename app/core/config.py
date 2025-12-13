@@ -38,6 +38,12 @@ class Settings(BaseSettings):
         "http://localhost:3000,http://localhost:8000"
     )
 
+    # Payment Providers (optional)
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    liqpay_public_key: str | None = None
+    liqpay_private_key: str | None = None
+
     @field_validator("allowed_origins", mode="after")
     @classmethod
     def parse_cors(cls, v):
