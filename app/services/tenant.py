@@ -92,7 +92,7 @@ class TenantService:
         query = (
             select(Tenant)
             .where(Tenant.id == tenant_id)
-            .options(selectinload(Tenant.subscriptions))
+            .options(selectinload(Tenant.subscription).selectinload(Subscription.plan))
         )
 
         result = await self.db.execute(query)
