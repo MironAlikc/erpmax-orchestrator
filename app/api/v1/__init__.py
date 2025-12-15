@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, tenants, billing, provisioning
+from app.api.v1 import auth, tenants, billing, provisioning, sso
 
 api_router = APIRouter()
 
@@ -13,6 +13,7 @@ api_router.include_router(billing.router, prefix="/billing", tags=["Billing"])
 api_router.include_router(
     provisioning.router, prefix="/provisioning", tags=["Provisioning"]
 )
+api_router.include_router(sso.router, prefix="/sso", tags=["SSO"])
 
 # Future routers will be added here:
 # api_router.include_router(users.router, prefix="/users", tags=["Users"])

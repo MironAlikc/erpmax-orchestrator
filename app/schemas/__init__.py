@@ -63,6 +63,12 @@ from app.schemas.provisioning import (
     CreateProvisioningJobRequest,
 )
 
+# SSO schemas
+from app.schemas.sso import (
+    SSOTokenResponse,
+    SSOCallbackRequest,
+)
+
 __all__ = [
     # Base
     "BaseSchema",
@@ -110,4 +116,7 @@ __all__ = [
     # Provisioning
     "ProvisioningJobResponse",
     "CreateProvisioningJobRequest",
+    # SSO
+    "SSOTokenResponse",
+    "SSOCallbackRequest",
 ]
