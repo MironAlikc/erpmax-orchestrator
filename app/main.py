@@ -6,7 +6,8 @@ from app.api.v1 import api_router
 
 settings = get_settings()
 
-app = FastAPI(
+# Create FastAPI app
+fastapi_app = FastAPI(
     title=settings.app_name,
     description="ERPMax SaaS Orchestrator API",
     version="0.1.0",
@@ -15,7 +16,7 @@ app = FastAPI(
 )
 
 # CORS
-app.add_middleware(
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
@@ -24,7 +25,21 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(api_router, prefix="/api/v1")
+fastapi_app.include_router(api_router, prefix="/api/v1")
+
+# Import Socket.IO event handlers and namespaces
+from app.realtime import events  # noqa: E402, F401
+from app.realtime.namespaces import notifications  # noqa: E402, F401
+from app.realtime.namespaces import provisioning  # noqa: E402, F401
+from app.realtime.namespaces import billing  # noqa: E402, F401
+
+# Mount Socket.IO app
+from app.realtime.server import socket_app
+
+fastapi_app.mount("/ws", socket_app)
+
+# Export as 'app' for compatibility
+app = fastapi_app
 
 
 @app.get("/")

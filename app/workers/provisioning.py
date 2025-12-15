@@ -13,6 +13,11 @@ from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal
 from app.models import ProvisioningJob, Tenant
 from app.models.enums import JobStatus, JobType, TenantStatus
+from app.realtime.emitters import (
+    emit_provisioning_status,
+    emit_provisioning_completed,
+    emit_provisioning_failed,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -41,12 +46,18 @@ async def _process_job(*, job_id: UUID) -> None:
 
         await db.commit()
 
+        # Emit real-time status update
+        await emit_provisioning_status(job.tenant_id, "running", 10, "Started")
+
         try:
             await asyncio.sleep(0.1)
 
             job.progress = 70
             job.message = "Processing"
             await db.commit()
+
+            # Emit progress update
+            await emit_provisioning_status(job.tenant_id, "running", 70, "Processing")
 
             await asyncio.sleep(0.1)
 
@@ -61,6 +72,12 @@ async def _process_job(*, job_id: UUID) -> None:
             await db.commit()
             logger.info("Provisioning job completed: %s", job.id)
 
+            # Emit completion event
+            erpnext_url = (
+                tenant.erpnext_site_url if tenant else "https://example.erpnext.com"
+            )
+            await emit_provisioning_completed(job.tenant_id, erpnext_url)
+
         except Exception as e:
             job.status = JobStatus.FAILED
             job.completed_at = datetime.utcnow()
@@ -68,6 +85,9 @@ async def _process_job(*, job_id: UUID) -> None:
             job.message = "Failed"
             await db.commit()
             logger.exception("Provisioning job failed: %s", job.id)
+
+            # Emit failure event
+            await emit_provisioning_failed(job.tenant_id, str(e))
 
 
 async def _handle_message(message: aio_pika.IncomingMessage) -> None:
