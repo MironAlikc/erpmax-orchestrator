@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # CORS
     allowed_origins: Union[str, list[str]] = (
-        "http://localhost:3000,http://localhost:8000"
+        "http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://localhost:8080"
     )
 
     # Payment Providers (optional)
@@ -49,8 +49,14 @@ class Settings(BaseSettings):
     @field_validator("allowed_origins", mode="after")
     @classmethod
     def parse_cors(cls, v):
-        """Parse CORS origins from comma-separated string"""
+        """
+        Parse CORS origins from comma-separated string.
+        Supports wildcard "*" to allow all origins (use only in development).
+        """
         if isinstance(v, str):
+            # Check for wildcard
+            if v.strip() == "*":
+                return ["*"]
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 

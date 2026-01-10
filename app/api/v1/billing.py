@@ -98,6 +98,11 @@ async def create_checkout(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    logger.info(
+        f"Checkout request - User: {current_user.email}, Tenant: {current_tenant.name}, "
+        f"Plan: {data.plan_id}, Period: {data.billing_period}, Provider: {data.payment_provider}"
+    )
+
     try:
         billing_service = BillingService(db)
         result = await billing_service.create_checkout(
@@ -111,14 +116,24 @@ async def create_checkout(
         )
 
         response_data = CheckoutResponse(**result)
+        logger.info(
+            f"Checkout session created successfully for tenant: {current_tenant.name}"
+        )
         return SingleResponse(status="success", data=response_data)
 
     except (NotFoundError, ValidationError) as e:
+        logger.warning(
+            f"Checkout validation error - Tenant: {current_tenant.name}, Error: {str(e.message)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e.message)
         )
     except Exception as e:
-        logger.error(f"Create checkout error: {str(e)}")
+        logger.error(
+            f"Create checkout error - Tenant: {current_tenant.name}, "
+            f"Plan: {data.plan_id}, Error: {str(e)}",
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create checkout session",

@@ -75,7 +75,7 @@ class AuthService:
         await self.db.flush()
 
         # Create tenant (slug from company name)
-        slug = self._generate_slug(data.company_name)
+        slug = await self._generate_unique_slug(data.company_name)
         tenant = Tenant(
             name=data.company_name,
             slug=slug,
@@ -329,6 +329,28 @@ class AuthService:
         slug = re.sub(r"[-\s]+", "-", slug)
         slug = slug.strip("-")
         return slug[:100]
+
+    async def _generate_unique_slug(self, name: str) -> str:
+        """Generate unique slug by checking database and adding suffix if needed"""
+        base_slug = self._generate_slug(name)
+        slug = base_slug
+        counter = 1
+
+        while True:
+            # Check if slug exists
+            result = await self.db.execute(select(Tenant).where(Tenant.slug == slug))
+            existing = result.scalar_one_or_none()
+
+            if not existing:
+                return slug
+
+            # Slug exists, try with counter
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+            # Prevent infinite loop
+            if counter > 1000:
+                raise ValidationError("Unable to generate unique slug")
 
     async def _get_trial_plan(self) -> Plan:
         """Get trial plan (or create if not exists)"""

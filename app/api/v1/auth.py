@@ -75,10 +75,10 @@ async def register(
             detail=str(e.message),
         )
     except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
+        logger.error(f"Registration error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed",
+            detail=f"Registration failed: {str(e)}",
         )
 
 

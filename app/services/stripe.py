@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hmac
 import json
+import logging
+import uuid
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any
@@ -11,6 +13,8 @@ import httpx
 from app.core.config import get_settings
 from app.core.exceptions import ValidationError
 from app.models.enums import BillingPeriod
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -23,6 +27,13 @@ class StripeService:
     def __init__(self) -> None:
         self._settings = get_settings()
 
+    def _is_mock_mode(self) -> bool:
+        """Check if we're in mock mode (for development without real Stripe keys)"""
+        key = self._settings.stripe_secret_key
+        return key is not None and (
+            key.startswith("sk_test_mock_") or key == "sk_test_..." or key == "mock"
+        )
+
     def _require_secret_key(self) -> str:
         if not self._settings.stripe_secret_key:
             raise ValidationError("Stripe secret key is not configured")
@@ -33,6 +44,14 @@ class StripeService:
     ) -> str:
         if external_customer_id:
             return external_customer_id
+
+        # Mock mode for development
+        if self._is_mock_mode():
+            customer_id = f"cus_mock_{uuid.uuid4().hex[:24]}"
+            logger.info(
+                f"[MOCK MODE] Created mock Stripe customer: {customer_id} for {email}"
+            )
+            return customer_id
 
         secret_key = self._require_secret_key()
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -60,6 +79,18 @@ class StripeService:
         cancel_url: str,
         metadata: dict[str, str],
     ) -> StripeCheckoutSession:
+        # Mock mode for development
+        if self._is_mock_mode():
+            session_id = f"cs_test_mock_{uuid.uuid4().hex[:40]}"
+            checkout_url = f"https://checkout.stripe.com/mock/pay/{session_id}"
+            logger.info(
+                f"[MOCK MODE] Created mock checkout session: {session_id} "
+                f"for plan '{plan_name}' ({amount/100:.2f} {currency})"
+            )
+            return StripeCheckoutSession(
+                checkout_url=checkout_url, session_id=session_id
+            )
+
         secret_key = self._require_secret_key()
 
         interval = "month" if billing_period == BillingPeriod.MONTHLY else "year"
@@ -98,6 +129,14 @@ class StripeService:
     async def cancel_subscription(
         self, *, external_subscription_id: str, at_period_end: bool
     ) -> None:
+        # Mock mode for development
+        if self._is_mock_mode():
+            logger.info(
+                f"[MOCK MODE] Mock cancelled subscription: {external_subscription_id} "
+                f"(at_period_end={at_period_end})"
+            )
+            return  # Mock cancellation - do nothing
+
         secret_key = self._require_secret_key()
         async with httpx.AsyncClient(timeout=30.0) as client:
             if at_period_end:
