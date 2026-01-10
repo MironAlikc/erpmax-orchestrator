@@ -2,6 +2,7 @@
 
 from typing import Optional
 from uuid import UUID
+import secrets
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,7 @@ from app.core.exceptions import (
     AlreadyExistsError,
     ValidationError,
 )
+from app.core.security import hash_password
 from app.models import Tenant, User, UserTenant, Subscription
 from app.models.enums import TenantRole, TenantStatus
 from app.schemas.tenant import TenantCreate, TenantUpdate
@@ -278,7 +280,16 @@ class TenantService:
         user = result.scalar_one_or_none()
 
         if not user:
-            raise NotFoundError(f"User with email {email}")
+            # Create user with temporary password
+            temp_password = secrets.token_urlsafe(16)
+            user = User(
+                email=email,
+                hashed_password=hash_password(temp_password),
+                full_name=email.split("@")[0],
+                is_active=True,
+            )
+            self.db.add(user)
+            await self.db.flush()  # Get user.id without committing
 
         # Check if already in tenant
         result = await self.db.execute(

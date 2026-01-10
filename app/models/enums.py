@@ -17,6 +17,7 @@ class TenantRole(str, Enum):
     OWNER = "owner"
     ADMIN = "admin"
     USER = "user"
+    MEMBER = "member"
 
 
 class SubscriptionStatus(str, Enum):
