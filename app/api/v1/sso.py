@@ -40,7 +40,7 @@ async def create_erpnext_sso_token(
         user_id=current_user.id, tenant_id=current_tenant.id
     )
 
-    return SingleResponse(data=token_response)
+    return SingleResponse(status="success", data=token_response)
 
 
 @router.get("/erpnext/callback")

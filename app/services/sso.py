@@ -31,6 +31,10 @@ class SSOService:
         self.redis = redis_client
         self.settings = get_settings()
 
+    def _is_mock_mode(self) -> bool:
+        """Check if we're in mock mode (for development without provisioned tenants)"""
+        return self.settings.environment == "development" or self.settings.debug
+
     async def generate_erpnext_token(
         self, user_id: UUID, tenant_id: UUID
     ) -> SSOTokenResponse:
@@ -55,9 +59,6 @@ class SSOService:
         if not tenant:
             raise not_found_exception("Tenant not found")
 
-        if not tenant.erpnext_site_url:
-            raise forbidden_exception("ERPNext site not provisioned yet")
-
         # Generate secure random token
         token = secrets.token_urlsafe(32)
 
@@ -73,12 +74,21 @@ class SSOService:
         await self.redis.expire(token_key, self.SSO_TOKEN_TTL)
 
         # Build SSO URL
-        base_url = tenant.erpnext_site_url.rstrip("/")
+        if self._is_mock_mode() and not tenant.erpnext_site_url:
+            # Mock mode: generate fake URL for development
+            base_url = f"https://{tenant.slug}.erpnext.mock.local"
+            log.info(
+                f"[MOCK MODE] Generated mock SSO token for user {user_id} to tenant {tenant_id} "
+                f"(tenant not provisioned, using mock URL)"
+            )
+        else:
+            if not tenant.erpnext_site_url:
+                raise forbidden_exception("ERPNext site not provisioned yet")
+            base_url = tenant.erpnext_site_url.rstrip("/")
+            log.info(f"Generated SSO token for user {user_id} to tenant {tenant_id}")
+
         sso_url = f"{base_url}/api/method/erpmax.sso.login?token={token}"
-
         expires_at = datetime.utcnow() + timedelta(seconds=self.SSO_TOKEN_TTL)
-
-        log.info(f"Generated SSO token for user {user_id} to tenant {tenant_id}")
 
         return SSOTokenResponse(sso_url=sso_url, token=token, expires_at=expires_at)
 

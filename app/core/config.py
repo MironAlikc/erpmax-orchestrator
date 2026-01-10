@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Redis
     redis_host: str = "localhost"
     redis_port: int = 6379
-    redis_password: str = "RedisErpMax2025!"
+    redis_password: str | None = None
 
     # RabbitMQ
     rabbitmq_host: str = "localhost"
